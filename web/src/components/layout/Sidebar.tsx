@@ -29,7 +29,7 @@ interface SidebarProps {
 }
 
 export function Sidebar({ settings, stats, houses, onStudentAdded, onSettingsChanged }: SidebarProps) {
-  const { isLoggedIn, user, logout } = useAuthStore();
+  const { isLoggedIn, isVerifying, user, logout } = useAuthStore();
   const { isDark, toggle: toggleDarkMode } = useDarkMode();
   const [showLogin, setShowLogin] = useState(false);
   const [showAddStudent, setShowAddStudent] = useState(false);
@@ -107,6 +107,15 @@ export function Sidebar({ settings, stats, houses, onStudentAdded, onSettingsCha
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
+            ) : isVerifying ? (
+              // Placeholder while the stored session is checked, so Sign In can't be opened mid-check
+              <div className="flex flex-1 items-center gap-3 animate-pulse" aria-busy="true" aria-label="Checking session">
+                <div className="h-9 w-9 rounded-full bg-[var(--card-bg-secondary)]" />
+                <div className="flex-1 space-y-1.5">
+                  <div className="h-3 w-20 rounded bg-[var(--card-bg-secondary)]" />
+                  <div className="h-2.5 w-14 rounded bg-[var(--card-bg-secondary)]" />
+                </div>
+              </div>
             ) : (
               <Button
                 variant="outline"

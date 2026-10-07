@@ -7,7 +7,8 @@ const api = axios.create({
 
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem("token");
-  if (token) {
+  // Login must not carry the stored token, or a wrong-password 401 would be mistaken for a rejected session
+  if (token && config.url !== "/auth/login") {
     config.headers.Authorization = `Bearer ${token}`;
   }
   return config;

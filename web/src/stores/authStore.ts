@@ -7,6 +7,7 @@ interface AuthState {
   token: string | null;
   user: User | null;
   isLoggedIn: boolean;
+  isVerifying: boolean;
   login: (username: string, password: string) => Promise<void>;
   logout: () => void;
   init: () => void;
@@ -54,12 +55,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   token: null,
   user: null,
   isLoggedIn: false,
+  isVerifying: false,
 
   login: async (username: string, password: string) => {
     const result = await apiLogin(username, password);
     localStorage.setItem("token", result.token);
     localStorage.setItem("user", JSON.stringify(result.user));
-    set({ token: result.token, user: result.user, isLoggedIn: true });
+    set({ token: result.token, user: result.user, isLoggedIn: true, isVerifying: false });
     scheduleExpiry(result.token);
   },
 
@@ -67,7 +69,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     clearTimeout(expiryTimer);
     localStorage.removeItem("token");
     localStorage.removeItem("user");
-    set({ token: null, user: null, isLoggedIn: false });
+    set({ token: null, user: null, isLoggedIn: false, isVerifying: false });
   },
 
   init: () => {
@@ -91,12 +93,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
 
     // Stay logged out until the server confirms the token, so admin controls never render for a dead session
-    set({ token, user });
+    set({ token, user, isVerifying: true });
     getMe()
       .then((freshUser) => {
         if (!isCurrentToken(token)) return;
         localStorage.setItem("user", JSON.stringify(freshUser));
-        set({ user: freshUser, isLoggedIn: true });
+        set({ user: freshUser, isLoggedIn: true, isVerifying: false });
         scheduleExpiry(token);
       })
       .catch((error) => {
@@ -107,7 +109,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           get().logout();
         } else {
           // Network or server error: keep the cached session instead of discarding a valid token
-          set({ isLoggedIn: true });
+          set({ isLoggedIn: true, isVerifying: false });
           scheduleExpiry(token);
         }
       });
