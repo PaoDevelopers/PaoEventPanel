@@ -41,8 +41,8 @@ export function Sidebar({ settings, stats, houses, onStudentAdded, onSettingsCha
   });
 
   return (
-    // From md up, the two children sit in the page grid's rows (subgrid), so they line up with the podium and ranking list
-    <aside className="w-full md:w-60 lg:w-72 shrink-0 h-full flex flex-col gap-2 md:grid md:row-span-2 md:grid-rows-subgrid md:gap-3">
+    // On split screens the two children sit in the page grid's rows (subgrid), so they line up with the podium and ranking list
+    <aside className="w-full split:w-60 lg:split:w-72 shrink-0 h-full flex flex-col gap-2 split:grid split:row-span-2 split:grid-rows-subgrid split:gap-3">
       {/* Top row: aligns with the individual podium */}
       <div className="flex flex-col gap-2 md:gap-3">
         <ActivityHeader settings={settings} />

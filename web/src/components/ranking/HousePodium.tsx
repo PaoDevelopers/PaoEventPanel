@@ -34,7 +34,7 @@ export function HousePodium({ houses }: HousePodiumProps) {
                   <span className="text-xs lg:text-sm font-semibold text-[var(--text-primary)] truncate">
                     {house.name}
                   </span>
-                  <span className="text-[11px] lg:text-xs font-bold tabular-nums text-[var(--text-primary)] ml-2 shrink-0">
+                  <span className="text-[0.6875rem] lg:text-xs font-bold tabular-nums text-[var(--text-primary)] ml-2 shrink-0">
                     {house.total_laps}
                   </span>
                 </div>
@@ -51,7 +51,7 @@ export function HousePodium({ houses }: HousePodiumProps) {
                 </div>
 
                 {/* Sub info */}
-                <span className="text-[10px] lg:text-[11px] tabular-nums text-[var(--text-muted)] leading-none mt-0.5 block">
+                <span className="text-[0.625rem] lg:text-[0.6875rem] tabular-nums text-[var(--text-muted)] leading-none mt-0.5 block">
                   {house.student_count} students
                 </span>
               </div>

@@ -20,20 +20,41 @@ import { useOnLogout } from "@/hooks/useOnLogout";
 import { addLaps, deleteStudent } from "@/api/students";
 import { notifyActionError } from "@/lib/notify";
 import { EditStudentDialog } from "@/components/admin/EditStudentDialog";
+import { LapControls, adminButtonClass, adminIconClass } from "@/components/ranking/LapControls";
+import { cn } from "@/lib/utils";
 
 interface RankingListProps {
   students: RankedStudent[];
   onLapChange?: () => void;
+  // Show ranks 1-3 in the list too (when the podium is hidden on short screens)
+  includePodium?: boolean;
 }
 
-export function RankingList({ students, onLapChange }: RankingListProps) {
+// Shortest prefix (3+ letters) that still tells houses apart, e.g. Spring/Summer -> Spr/Sum
+function shortHouseLabels(names: string[]): Map<string, string> {
+  const labels = new Map<string, string>();
+  for (const name of names) {
+    let len = Math.min(3, name.length);
+    while (len < name.length && names.some((other) => other !== name && other.startsWith(name.slice(0, len)))) len++;
+    labels.set(name, name.slice(0, len));
+  }
+  return labels;
+}
+
+export function RankingList({ students, onLapChange, includePodium = false }: RankingListProps) {
   const { isLoggedIn } = useAuthStore();
   const [search, setSearch] = useState("");
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [editStudent, setEditStudent] = useState<RankedStudent | null>(null);
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const [autoScroll, setAutoScroll] = useState(true);
+  // Auto-scroll is for the public display; admins get a still list so rows don't drift under their taps
+  const [autoScroll, setAutoScroll] = useState(!isLoggedIn);
+  const [autoScrollForAdmin, setAutoScrollForAdmin] = useState(isLoggedIn);
+  if (autoScrollForAdmin !== isLoggedIn) {
+    setAutoScrollForAdmin(isLoggedIn);
+    setAutoScroll(!isLoggedIn);
+  }
   const [hovered, setHovered] = useState(false);
   const lapsLocked = useReorderLock(students.map((s) => s.id));
   useOnLogout(() => {
@@ -78,9 +99,9 @@ export function RankingList({ students, onLapChange }: RankingListProps) {
     return () => cancelAnimationFrame(raf);
   }, [search, autoScroll, hovered]);
 
-  // Show students ranked 4th and below
+  // Show students ranked 4th and below (everyone when the podium is hidden)
   const listStudents = students
-    .filter((s) => s.rank > 3 || students.indexOf(s) >= 3)
+    .filter((s) => includePodium || s.rank > 3 || students.indexOf(s) >= 3)
     .filter((s) => !search || s.name.toLowerCase().includes(search.toLowerCase()));
 
   const handleAddLap = async (id: number, delta: number) => {
@@ -106,6 +127,7 @@ export function RankingList({ students, onLapChange }: RankingListProps) {
   };
 
   const deleteTarget = students.find((s) => s.id === deleteId);
+  const houseLabels = shortHouseLabels([...new Set(students.map((s) => s.house.name))]);
 
   return (
     <div className="flex flex-1 min-h-0 flex-col overflow-hidden rounded-xl border border-[var(--border-color)] glass-card">
@@ -160,7 +182,7 @@ export function RankingList({ students, onLapChange }: RankingListProps) {
                 >
                   {/* Rank */}
                   <div className="flex w-6 sm:w-8 items-center justify-center shrink-0">
-                    <span className="text-xs sm:text-base font-bold tabular-nums text-[var(--text-muted)]">
+                    <span className="text-sm sm:text-base 2xl:text-lg font-bold tabular-nums text-[var(--text-secondary)]">
                       {student.rank}
                     </span>
                   </div>
@@ -181,72 +203,52 @@ export function RankingList({ students, onLapChange }: RankingListProps) {
                   </div>
 
                   {/* Name */}
-                  <div className="flex-1 min-w-0 truncate text-xs sm:text-sm md:text-base text-[var(--text-primary)] text-left">
+                  <div className="flex-1 min-w-0 truncate text-sm sm:text-base 2xl:text-lg text-[var(--text-primary)] text-left">
                     {student.name}
                   </div>
 
-                  {/* House - centered between name and laps */}
+                  {/* House - color dot plus a readable label, centered between name and laps */}
                   <div
-                    className="w-8 sm:w-20 text-center text-[10px] sm:text-sm font-medium shrink-0"
-                    style={{ color: student.house.color }}
+                    className="flex w-12 sm:w-24 2xl:w-28 shrink-0 items-center justify-center gap-1.5 text-xs sm:text-sm 2xl:text-base font-medium text-[var(--text-secondary)]"
+                    title={student.house.name}
                   >
-                    <span className="sm:hidden">{student.house.name.charAt(0)}</span>
-                    <span className="hidden sm:inline">{student.house.name}</span>
+                    <span
+                      aria-hidden="true"
+                      className="h-2 w-2 sm:h-2.5 sm:w-2.5 shrink-0 rounded-full"
+                      style={{ backgroundColor: student.house.color }}
+                    />
+                    <span className="sm:hidden">{houseLabels.get(student.house.name)}</span>
+                    <span className="hidden sm:inline truncate">{student.house.name}</span>
                   </div>
 
-                  {/* Lap count */}
-                  <div className="flex-1 min-w-0 text-xs sm:text-base font-bold tabular-nums text-[var(--text-primary)] text-right">
+                  {/* Lap count - fixed width on phones so the name keeps the room */}
+                  <div className="w-9 shrink-0 sm:w-auto sm:flex-1 sm:min-w-0 text-base 2xl:text-xl font-bold tabular-nums text-[var(--text-primary)] text-right">
                     {student.lap_count}
                   </div>
 
-                  {/* Desktop admin controls */}
                   {isLoggedIn && (
-                    <div className="hidden md:flex items-center gap-1">
-                      <button
-                        onClick={() => handleAddLap(student.id, -1)}
+                    <div className="flex shrink-0 items-center gap-1">
+                      <LapControls
+                        name={student.name}
                         disabled={lapsLocked}
-                        className="disabled:opacity-50 flex h-7 w-7 items-center justify-center rounded-lg border border-[var(--border-color)] bg-[var(--card-bg)] text-sm text-[var(--text-secondary)] hover:bg-[var(--card-bg-secondary)] transition-colors"
-                      >
-                        -
-                      </button>
+                        onChange={(delta) => handleAddLap(student.id, delta)}
+                      />
+                      {/* Inline edit/delete where there's room for them; elsewhere they're in the long-press panel */}
                       <button
-                        onClick={() => handleAddLap(student.id, 1)}
-                        disabled={lapsLocked}
-                        className="disabled:opacity-50 flex h-7 w-7 items-center justify-center rounded-lg border border-[var(--border-color)] bg-[var(--card-bg)] text-sm text-[var(--text-primary)] hover:bg-[var(--card-bg-secondary)] transition-colors"
-                      >
-                        +
-                      </button>
-                      <button
+                        type="button"
+                        aria-label={`Edit ${student.name}`}
                         onClick={() => setEditStudent(student)}
-                        className="flex h-7 w-7 items-center justify-center rounded-lg border border-[var(--border-color)] bg-[var(--card-bg)] text-[var(--text-secondary)] hover:bg-[var(--card-bg-secondary)] transition-colors"
+                        className={cn(adminButtonClass, "hidden lg:flex md:pointer-fine:flex text-[var(--text-secondary)]")}
                       >
-                        <Pencil className="h-3.5 w-3.5" />
+                        <Pencil className={adminIconClass} />
                       </button>
                       <button
+                        type="button"
+                        aria-label={`Delete ${student.name}`}
                         onClick={() => setDeleteId(student.id)}
-                        className="flex h-7 w-7 items-center justify-center rounded-lg border border-[var(--border-color)] bg-[var(--card-bg)] text-[#E57373] hover:bg-[var(--card-bg-secondary)] transition-colors"
+                        className={cn(adminButtonClass, "hidden lg:flex md:pointer-fine:flex text-[#E57373]")}
                       >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                  )}
-
-                  {/* Mobile +/- buttons (always visible when logged in) */}
-                  {isLoggedIn && (
-                    <div className="flex md:hidden items-center gap-0.5">
-                      <button
-                        onClick={() => handleAddLap(student.id, -1)}
-                        disabled={lapsLocked}
-                        className="disabled:opacity-50 flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--border-color)] bg-[var(--card-bg)] text-sm text-[var(--text-secondary)] active:bg-[var(--card-bg-secondary)] transition-colors"
-                      >
-                        -
-                      </button>
-                      <button
-                        onClick={() => handleAddLap(student.id, 1)}
-                        disabled={lapsLocked}
-                        className="disabled:opacity-50 flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--border-color)] bg-[var(--card-bg)] text-sm text-[var(--text-primary)] active:bg-[var(--card-bg-secondary)] transition-colors"
-                      >
-                        +
+                        <Trash2 className={adminIconClass} />
                       </button>
                     </div>
                   )}
@@ -258,18 +260,18 @@ export function RankingList({ students, onLapChange }: RankingListProps) {
                     initial={{ height: 0, opacity: 0 }}
                     animate={{ height: "auto", opacity: 1 }}
                     exit={{ height: 0, opacity: 0 }}
-                    className="md:hidden flex items-center gap-2 px-2.5 pb-2 border-t border-[var(--border-color)]"
+                    className="lg:hidden md:pointer-fine:hidden flex items-center gap-2 px-2.5 pb-2 border-t border-[var(--border-color)]"
                   >
                     <button
                       onClick={() => { setEditStudent(student); setExpandedId(null); }}
-                      className="flex h-9 items-center gap-1.5 px-3 rounded-lg border border-[var(--border-color)] bg-[var(--card-bg)] text-xs text-[var(--text-secondary)] active:bg-[var(--card-bg-secondary)] transition-colors mt-2"
+                      className="flex h-11 items-center gap-1.5 px-4 rounded-lg border border-[var(--border-color)] bg-[var(--card-bg)] text-xs text-[var(--text-secondary)] active:bg-[var(--card-bg-secondary)] transition-colors mt-2"
                     >
                       <Pencil className="h-3.5 w-3.5" />
                       Edit
                     </button>
                     <button
                       onClick={() => { setDeleteId(student.id); setExpandedId(null); }}
-                      className="flex h-9 items-center gap-1.5 px-3 rounded-lg border border-[var(--border-color)] bg-[var(--card-bg)] text-xs text-[#E57373] active:bg-[var(--card-bg-secondary)] transition-colors mt-2"
+                      className="flex h-11 items-center gap-1.5 px-4 rounded-lg border border-[var(--border-color)] bg-[var(--card-bg)] text-xs text-[#E57373] active:bg-[var(--card-bg-secondary)] transition-colors mt-2"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                       Delete
@@ -277,7 +279,8 @@ export function RankingList({ students, onLapChange }: RankingListProps) {
                     <div className="flex-1" />
                     <button
                       onClick={() => setExpandedId(null)}
-                      className="flex h-9 w-9 items-center justify-center rounded-lg text-[var(--text-muted)] mt-2"
+                      aria-label="Close actions"
+                      className="flex h-11 w-11 items-center justify-center rounded-lg text-[var(--text-muted)] mt-2"
                     >
                       <X className="h-4 w-4" />
                     </button>

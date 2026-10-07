@@ -17,6 +17,11 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Trash2, Pencil } from "lucide-react";
 import { EditStudentDialog } from "@/components/admin/EditStudentDialog";
+import { LapControls, adminButtonClass, adminIconClass } from "@/components/ranking/LapControls";
+import { cn } from "@/lib/utils";
+
+// Podium buttons sit on the card, so they use the inset surface
+const podiumButtonClass = "bg-[var(--card-bg-secondary)] hover:bg-[var(--card-bg)] active:bg-[var(--card-bg)]";
 
 interface IndividualPodiumProps {
   students: RankedStudent[];
@@ -88,14 +93,14 @@ export function IndividualPodium({ students, onLapChange }: IndividualPodiumProp
                 <div className="text-xs sm:text-sm md:text-lg 2xl:text-xl font-semibold text-[var(--text-primary)] truncate max-w-full px-1">
                   {student.name}
                 </div>
-                <div className="text-[10px] sm:text-xs md:text-base text-[var(--text-secondary)]">
+                <div className="text-[0.625rem] sm:text-xs md:text-base text-[var(--text-secondary)]">
                   {student.lap_count} laps
                 </div>
               </div>
               <div
                 className="w-full rounded-t-lg md:rounded-t-xl flex items-start justify-center pt-1.5 sm:pt-2 md:pt-3 transition-all duration-500"
                 style={{
-                  height: `clamp(${mobileHeight}px, 10vw, ${height}px)`,
+                  height: `clamp(${mobileHeight / 16}rem, 10vw, ${height / 16}rem)`,
                   backgroundColor: student.house.color,
                 }}
               >
@@ -104,32 +109,29 @@ export function IndividualPodium({ students, onLapChange }: IndividualPodiumProp
                 </span>
               </div>
               {isLoggedIn && (
-                <div className="flex items-center gap-0.5 sm:gap-1 mt-1.5 sm:mt-2">
-                  <button
-                    onClick={() => handleAddLap(student.id, -1)}
+                // Touch-sized buttons don't fit one row in a narrow column, so they form a 2x2 grid there
+                <div className="grid grid-cols-2 lg:flex md:pointer-fine:flex items-center justify-center gap-1 mt-1.5 sm:mt-2">
+                  <LapControls
+                    name={student.name}
                     disabled={lapsLocked}
-                    className="disabled:opacity-50 flex h-9 w-9 sm:h-8 sm:w-8 md:h-7 md:w-7 items-center justify-center rounded-lg border border-[var(--border-color)] bg-[var(--card-bg-secondary)] text-sm text-[var(--text-secondary)] hover:bg-[var(--card-bg)] active:bg-[var(--card-bg)] transition-colors"
-                  >
-                    -
-                  </button>
+                    onChange={(delta) => handleAddLap(student.id, delta)}
+                    buttonClassName={podiumButtonClass}
+                  />
                   <button
-                    onClick={() => handleAddLap(student.id, 1)}
-                    disabled={lapsLocked}
-                    className="disabled:opacity-50 flex h-9 w-9 sm:h-8 sm:w-8 md:h-7 md:w-7 items-center justify-center rounded-lg border border-[var(--border-color)] bg-[var(--card-bg-secondary)] text-sm text-[var(--text-primary)] hover:bg-[var(--card-bg)] active:bg-[var(--card-bg)] transition-colors"
-                  >
-                    +
-                  </button>
-                  <button
+                    type="button"
+                    aria-label={`Edit ${student.name}`}
                     onClick={() => setEditStudent(student)}
-                    className="hidden md:flex h-7 w-7 items-center justify-center rounded-lg border border-[var(--border-color)] bg-[var(--card-bg-secondary)] text-[var(--text-secondary)] hover:bg-[var(--card-bg)] transition-colors"
+                    className={cn(adminButtonClass, podiumButtonClass, "hidden md:flex text-[var(--text-secondary)]")}
                   >
-                    <Pencil className="h-3.5 w-3.5" />
+                    <Pencil className={adminIconClass} />
                   </button>
                   <button
+                    type="button"
+                    aria-label={`Delete ${student.name}`}
                     onClick={() => setDeleteId(student.id)}
-                    className="hidden md:flex h-7 w-7 items-center justify-center rounded-lg border border-[var(--border-color)] bg-[var(--card-bg-secondary)] text-[#E57373] hover:bg-[var(--card-bg)] transition-colors"
+                    className={cn(adminButtonClass, podiumButtonClass, "hidden md:flex text-[#E57373]")}
                   >
-                    <Trash2 className="h-3.5 w-3.5" />
+                    <Trash2 className={adminIconClass} />
                   </button>
                 </div>
               )}

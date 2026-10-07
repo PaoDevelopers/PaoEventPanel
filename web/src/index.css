@@ -4,6 +4,8 @@
 @import "@fontsource-variable/inter";
 
 @custom-variant dark (&:is(.dark *));
+/* Two-column panel layout: needs height as well as width, so landscape phones keep the stacked layout */
+@custom-variant split (@media (width >= 48rem) and (height >= 32rem));
 
 @theme inline {
     --font-heading: "Inter Variable", sans-serif;
@@ -168,6 +170,8 @@
     }
     html {
         @apply font-sans;
+        /* Scale the whole UI on big displays read from a distance: 1x at 1920x1080, 2x at 4K, never below the user's default */
+        font-size: clamp(100%, min(0.8333vw, 1.4815vh), 200%);
     }
     h1, h2, h3, h4, h5, h6 {
         font-family: var(--font-heading);
