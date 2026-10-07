@@ -16,6 +16,7 @@ import { Search, Trash2, Play, Pause, Pencil, X } from "lucide-react";
 import type { RankedStudent } from "@/types";
 import { useAuthStore } from "@/stores/authStore";
 import { useReorderLock } from "@/hooks/useReorderLock";
+import { useOnLogout } from "@/hooks/useOnLogout";
 import { addLaps, deleteStudent } from "@/api/students";
 import { EditStudentDialog } from "@/components/admin/EditStudentDialog";
 
@@ -34,6 +35,11 @@ export function RankingList({ students, onLapChange }: RankingListProps) {
   const [autoScroll, setAutoScroll] = useState(true);
   const [hovered, setHovered] = useState(false);
   const lapsLocked = useReorderLock(students.map((s) => s.id));
+  useOnLogout(() => {
+    setDeleteId(null);
+    setEditStudent(null);
+    setExpandedId(null);
+  });
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Long-press handler for mobile admin actions

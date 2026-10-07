@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { isAxiosError } from "axios";
+import { toast } from "sonner";
 import type { User } from "@/types";
 import { login as apiLogin, getMe } from "@/api/auth";
 
@@ -10,6 +11,7 @@ interface AuthState {
   isVerifying: boolean;
   login: (username: string, password: string) => Promise<void>;
   logout: () => void;
+  expireSession: () => void;
   init: () => void;
 }
 
@@ -44,7 +46,7 @@ function scheduleExpiry(token: string) {
   expiryTimer = setTimeout(() => {
     if (!isCurrentToken(token)) return;
     if (isExpired(token)) {
-      useAuthStore.getState().logout();
+      useAuthStore.getState().expireSession();
     } else {
       scheduleExpiry(token);
     }
@@ -72,6 +74,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ token: null, user: null, isLoggedIn: false, isVerifying: false });
   },
 
+  // Logout the user didn't ask for (expired or rejected token): tell them why the admin controls disappeared
+  expireSession: () => {
+    get().logout();
+    toast.warning("Your session has expired. Please sign in again.", { id: "session-expired" });
+  },
+
   init: () => {
     if (initialized) return;
     initialized = true;
@@ -88,7 +96,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       return;
     }
     if (isExpired(token)) {
-      get().logout();
+      get().expireSession();
       return;
     }
 
@@ -106,7 +114,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         const status = isAxiosError(error) ? error.response?.status : undefined;
         if (status !== undefined && status < 500) {
           // Token rejected or user gone (401 is already handled by the response interceptor)
-          get().logout();
+          get().expireSession();
         } else {
           // Network or server error: keep the cached session instead of discarding a valid token
           set({ isLoggedIn: true, isVerifying: false });

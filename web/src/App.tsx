@@ -7,6 +7,7 @@ import { Sidebar } from "@/components/layout/Sidebar";
 import { IndividualPodium } from "@/components/ranking/IndividualPodium";
 import { RankingList } from "@/components/ranking/RankingList";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { Toaster } from "sonner";
 import { Menu, X } from "lucide-react";
 
 function hexToRgb(hex: string): string {
@@ -81,6 +82,7 @@ function App() {
 
   return (
     <TooltipProvider>
+      <Toaster theme={isDark ? "dark" : "light"} position="top-center" richColors />
       <div className="relative min-h-screen w-full overflow-hidden" style={backgroundStyle}>
         {showBlur && (
           <div className="absolute inset-0 backdrop-blur-xl bg-black/30 z-0" />

@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { RankedStudent } from "@/types";
 import { useAuthStore } from "@/stores/authStore";
 import { useReorderLock } from "@/hooks/useReorderLock";
+import { useOnLogout } from "@/hooks/useOnLogout";
 import { addLaps, deleteStudent } from "@/api/students";
 import {
   AlertDialog,
@@ -26,6 +27,10 @@ export function IndividualPodium({ students, onLapChange }: IndividualPodiumProp
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [editStudent, setEditStudent] = useState<RankedStudent | null>(null);
   const lapsLocked = useReorderLock(students.map((s) => s.id));
+  useOnLogout(() => {
+    setDeleteId(null);
+    setEditStudent(null);
+  });
   const top3 = students.slice(0, 3);
   if (top3.length === 0) {
     return (

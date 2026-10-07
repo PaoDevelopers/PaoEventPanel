@@ -21,7 +21,7 @@ api.interceptors.response.use(
     const sentAuth = error.config?.headers?.Authorization;
     const currentToken = localStorage.getItem("token");
     if (error.response?.status === 401 && currentToken && sentAuth === `Bearer ${currentToken}`) {
-      useAuthStore.getState().logout();
+      useAuthStore.getState().expireSession();
     }
     return Promise.reject(error);
   }

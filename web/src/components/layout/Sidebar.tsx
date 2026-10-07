@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useAuthStore } from "@/stores/authStore";
 import { useDarkMode } from "@/hooks/useDarkMode";
+import { useOnLogout } from "@/hooks/useOnLogout";
 import type { ActivitySettings, HouseRanking, Stats } from "@/types";
 import { ActivityHeader } from "@/components/activity/ActivityHeader";
 import { StatsCards } from "@/components/activity/StatsCards";
@@ -34,6 +35,10 @@ export function Sidebar({ settings, stats, houses, onStudentAdded, onSettingsCha
   const [showLogin, setShowLogin] = useState(false);
   const [showAddStudent, setShowAddStudent] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  useOnLogout(() => {
+    setShowAddStudent(false);
+    setShowSettings(false);
+  });
 
   return (
     <aside className="w-full md:w-60 lg:w-72 shrink-0 h-full flex flex-col gap-2 md:gap-3">
