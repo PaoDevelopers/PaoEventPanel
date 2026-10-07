@@ -130,19 +130,20 @@ function App() {
         </div>
 
         {/* Main layout */}
-        <div className="relative z-10 flex h-screen gap-2 p-2 md:gap-3 md:p-3 max-w-[1920px] mx-auto">
+        {/* From md up: 2x2 grid; sidebar and main content span both rows via subgrid so their rows line up */}
+        <div className="relative z-10 flex h-screen gap-2 p-2 md:grid md:grid-cols-[auto_minmax(0,1fr)] md:grid-rows-[auto_minmax(0,1fr)] md:gap-3 md:p-3 max-w-[1920px] mx-auto">
           {/* Tablet sidebar - narrower, visible at md */}
-          <div className="hidden md:block lg:hidden h-full shrink-0 w-60">
+          <div className="hidden md:grid lg:hidden row-span-2 grid-rows-subgrid min-h-0 w-60">
             {sidebarContent}
           </div>
 
           {/* Desktop sidebar - full width, visible at lg */}
-          <div className="hidden lg:block h-full shrink-0">
+          <div className="hidden lg:grid row-span-2 grid-rows-subgrid min-h-0">
             {sidebarContent}
           </div>
 
           {/* Main content */}
-          <div className="flex flex-1 flex-col gap-2 md:gap-3 overflow-hidden pt-14 md:pt-0">
+          <div className="flex flex-1 flex-col gap-2 overflow-hidden pt-14 md:grid md:row-span-2 md:grid-rows-subgrid md:gap-3 md:pt-0">
             <IndividualPodium students={students} onLapChange={refresh} />
             <RankingList students={students} onLapChange={refresh} />
           </div>

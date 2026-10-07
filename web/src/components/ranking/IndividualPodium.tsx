@@ -71,7 +71,7 @@ export function IndividualPodium({ students, onLapChange }: IndividualPodiumProp
   const positionOrder = top3.length >= 3 ? [1, 0, 2] : top3.length === 2 ? [1, 0] : [0];
 
   return (
-    <div className="rounded-xl border border-[var(--border-color)] glass-card p-3 sm:p-4 md:p-6 2xl:p-8">
+    <div className="flex flex-col justify-end rounded-xl border border-[var(--border-color)] glass-card p-3 sm:p-4 md:p-6 2xl:p-8">
       <div className="flex items-end justify-center gap-1.5 sm:gap-3 md:gap-5 2xl:gap-8">
         {positionOrder.map((idx) => {
           const student = top3[idx];

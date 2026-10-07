@@ -108,7 +108,7 @@ export function RankingList({ students, onLapChange }: RankingListProps) {
   const deleteTarget = students.find((s) => s.id === deleteId);
 
   return (
-    <div className="flex flex-1 flex-col overflow-hidden rounded-xl border border-[var(--border-color)] glass-card">
+    <div className="flex flex-1 min-h-0 flex-col overflow-hidden rounded-xl border border-[var(--border-color)] glass-card">
       <div className="flex items-center gap-2 px-3 sm:px-4 pt-3 sm:pt-4 pb-2">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]" />

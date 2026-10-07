@@ -41,11 +41,18 @@ export function Sidebar({ settings, stats, houses, onStudentAdded, onSettingsCha
   });
 
   return (
-    <aside className="w-full md:w-60 lg:w-72 shrink-0 h-full flex flex-col gap-2 md:gap-3">
-      {/* Scrollable top content */}
-      <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-2 md:gap-3">
+    // From md up, the two children sit in the page grid's rows (subgrid), so they line up with the podium and ranking list
+    <aside className="w-full md:w-60 lg:w-72 shrink-0 h-full flex flex-col gap-2 md:grid md:row-span-2 md:grid-rows-subgrid md:gap-3">
+      {/* Top row: aligns with the individual podium */}
+      <div className="flex flex-col gap-2 md:gap-3">
         <ActivityHeader settings={settings} />
         <StatsCards stats={stats} />
+      </div>
+
+      {/* Bottom row: aligns with the ranking list */}
+      <div className="flex-1 min-h-0 flex flex-col gap-2 md:gap-3">
+      {/* Scrollable content */}
+      <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-2 md:gap-3">
         <HousePodium houses={houses} />
         <DateTimeWeather weatherLocation={settings.weather_location} />
       </div>
@@ -141,6 +148,7 @@ export function Sidebar({ settings, stats, houses, onStudentAdded, onSettingsCha
             </button>
           </div>
         </div>
+      </div>
       </div>
 
       <LoginDialog open={showLogin} onOpenChange={setShowLogin} />
