@@ -4,6 +4,7 @@ import { useAuthStore } from "@/stores/authStore";
 import { useReorderLock } from "@/hooks/useReorderLock";
 import { useOnLogout } from "@/hooks/useOnLogout";
 import { addLaps, deleteStudent } from "@/api/students";
+import { notifyActionError } from "@/lib/notify";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -44,8 +45,9 @@ export function IndividualPodium({ students, onLapChange }: IndividualPodiumProp
     try {
       await addLaps(id, delta);
       onLapChange?.();
-    } catch {
-      // ignore
+    } catch (error) {
+      const name = students.find((s) => s.id === id)?.name ?? "this student";
+      notifyActionError(error, `Couldn't update laps for ${name}. Please try again.`);
     }
   };
 
@@ -53,8 +55,9 @@ export function IndividualPodium({ students, onLapChange }: IndividualPodiumProp
     try {
       await deleteStudent(id);
       onLapChange?.();
-    } catch {
-      // ignore
+    } catch (error) {
+      const name = students.find((s) => s.id === id)?.name ?? "the student";
+      notifyActionError(error, `Couldn't delete ${name}. Please try again.`);
     } finally {
       setDeleteId(null);
     }

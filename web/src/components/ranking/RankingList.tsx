@@ -18,6 +18,7 @@ import { useAuthStore } from "@/stores/authStore";
 import { useReorderLock } from "@/hooks/useReorderLock";
 import { useOnLogout } from "@/hooks/useOnLogout";
 import { addLaps, deleteStudent } from "@/api/students";
+import { notifyActionError } from "@/lib/notify";
 import { EditStudentDialog } from "@/components/admin/EditStudentDialog";
 
 interface RankingListProps {
@@ -86,8 +87,9 @@ export function RankingList({ students, onLapChange }: RankingListProps) {
     try {
       await addLaps(id, delta);
       onLapChange?.();
-    } catch {
-      // ignore
+    } catch (error) {
+      const name = students.find((s) => s.id === id)?.name ?? "this student";
+      notifyActionError(error, `Couldn't update laps for ${name}. Please try again.`);
     }
   };
 
@@ -95,8 +97,9 @@ export function RankingList({ students, onLapChange }: RankingListProps) {
     try {
       await deleteStudent(id);
       onLapChange?.();
-    } catch {
-      // ignore
+    } catch (error) {
+      const name = students.find((s) => s.id === id)?.name ?? "the student";
+      notifyActionError(error, `Couldn't delete ${name}. Please try again.`);
     } finally {
       setDeleteId(null);
     }
