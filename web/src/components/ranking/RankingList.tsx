@@ -15,6 +15,7 @@ import {
 import { Search, Trash2, Play, Pause, Pencil, X } from "lucide-react";
 import type { RankedStudent } from "@/types";
 import { useAuthStore } from "@/stores/authStore";
+import { useReorderLock } from "@/hooks/useReorderLock";
 import { addLaps, deleteStudent } from "@/api/students";
 import { EditStudentDialog } from "@/components/admin/EditStudentDialog";
 
@@ -32,6 +33,7 @@ export function RankingList({ students, onLapChange }: RankingListProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [autoScroll, setAutoScroll] = useState(true);
   const [hovered, setHovered] = useState(false);
+  const lapsLocked = useReorderLock(students.map((s) => s.id));
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Long-press handler for mobile admin actions
@@ -193,13 +195,15 @@ export function RankingList({ students, onLapChange }: RankingListProps) {
                     <div className="hidden md:flex items-center gap-1">
                       <button
                         onClick={() => handleAddLap(student.id, -1)}
-                        className="flex h-7 w-7 items-center justify-center rounded-lg border border-[var(--border-color)] bg-[var(--card-bg)] text-sm text-[var(--text-secondary)] hover:bg-[var(--card-bg-secondary)] transition-colors"
+                        disabled={lapsLocked}
+                        className="disabled:opacity-50 flex h-7 w-7 items-center justify-center rounded-lg border border-[var(--border-color)] bg-[var(--card-bg)] text-sm text-[var(--text-secondary)] hover:bg-[var(--card-bg-secondary)] transition-colors"
                       >
                         -
                       </button>
                       <button
                         onClick={() => handleAddLap(student.id, 1)}
-                        className="flex h-7 w-7 items-center justify-center rounded-lg border border-[var(--border-color)] bg-[var(--card-bg)] text-sm text-[var(--text-primary)] hover:bg-[var(--card-bg-secondary)] transition-colors"
+                        disabled={lapsLocked}
+                        className="disabled:opacity-50 flex h-7 w-7 items-center justify-center rounded-lg border border-[var(--border-color)] bg-[var(--card-bg)] text-sm text-[var(--text-primary)] hover:bg-[var(--card-bg-secondary)] transition-colors"
                       >
                         +
                       </button>
@@ -223,13 +227,15 @@ export function RankingList({ students, onLapChange }: RankingListProps) {
                     <div className="flex md:hidden items-center gap-0.5">
                       <button
                         onClick={() => handleAddLap(student.id, -1)}
-                        className="flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--border-color)] bg-[var(--card-bg)] text-sm text-[var(--text-secondary)] active:bg-[var(--card-bg-secondary)] transition-colors"
+                        disabled={lapsLocked}
+                        className="disabled:opacity-50 flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--border-color)] bg-[var(--card-bg)] text-sm text-[var(--text-secondary)] active:bg-[var(--card-bg-secondary)] transition-colors"
                       >
                         -
                       </button>
                       <button
                         onClick={() => handleAddLap(student.id, 1)}
-                        className="flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--border-color)] bg-[var(--card-bg)] text-sm text-[var(--text-primary)] active:bg-[var(--card-bg-secondary)] transition-colors"
+                        disabled={lapsLocked}
+                        className="disabled:opacity-50 flex h-9 w-9 items-center justify-center rounded-lg border border-[var(--border-color)] bg-[var(--card-bg)] text-sm text-[var(--text-primary)] active:bg-[var(--card-bg-secondary)] transition-colors"
                       >
                         +
                       </button>

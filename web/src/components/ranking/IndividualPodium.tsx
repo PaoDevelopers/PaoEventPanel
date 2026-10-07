@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { RankedStudent } from "@/types";
 import { useAuthStore } from "@/stores/authStore";
+import { useReorderLock } from "@/hooks/useReorderLock";
 import { addLaps, deleteStudent } from "@/api/students";
 import {
   AlertDialog,
@@ -24,6 +25,7 @@ export function IndividualPodium({ students, onLapChange }: IndividualPodiumProp
   const { isLoggedIn } = useAuthStore();
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [editStudent, setEditStudent] = useState<RankedStudent | null>(null);
+  const lapsLocked = useReorderLock(students.map((s) => s.id));
   const top3 = students.slice(0, 3);
   if (top3.length === 0) {
     return (
@@ -97,13 +99,15 @@ export function IndividualPodium({ students, onLapChange }: IndividualPodiumProp
                 <div className="flex items-center gap-0.5 sm:gap-1 mt-1.5 sm:mt-2">
                   <button
                     onClick={() => handleAddLap(student.id, -1)}
-                    className="flex h-9 w-9 sm:h-8 sm:w-8 md:h-7 md:w-7 items-center justify-center rounded-lg border border-[var(--border-color)] bg-[var(--card-bg-secondary)] text-sm text-[var(--text-secondary)] hover:bg-[var(--card-bg)] active:bg-[var(--card-bg)] transition-colors"
+                    disabled={lapsLocked}
+                    className="disabled:opacity-50 flex h-9 w-9 sm:h-8 sm:w-8 md:h-7 md:w-7 items-center justify-center rounded-lg border border-[var(--border-color)] bg-[var(--card-bg-secondary)] text-sm text-[var(--text-secondary)] hover:bg-[var(--card-bg)] active:bg-[var(--card-bg)] transition-colors"
                   >
                     -
                   </button>
                   <button
                     onClick={() => handleAddLap(student.id, 1)}
-                    className="flex h-9 w-9 sm:h-8 sm:w-8 md:h-7 md:w-7 items-center justify-center rounded-lg border border-[var(--border-color)] bg-[var(--card-bg-secondary)] text-sm text-[var(--text-primary)] hover:bg-[var(--card-bg)] active:bg-[var(--card-bg)] transition-colors"
+                    disabled={lapsLocked}
+                    className="disabled:opacity-50 flex h-9 w-9 sm:h-8 sm:w-8 md:h-7 md:w-7 items-center justify-center rounded-lg border border-[var(--border-color)] bg-[var(--card-bg-secondary)] text-sm text-[var(--text-primary)] hover:bg-[var(--card-bg)] active:bg-[var(--card-bg)] transition-colors"
                   >
                     +
                   </button>
