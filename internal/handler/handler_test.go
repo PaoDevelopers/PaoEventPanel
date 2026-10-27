@@ -13,6 +13,7 @@ import (
 	"net/http/httptest"
 	"net/textproto"
 	"os"
+	"sync"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -23,10 +24,9 @@ import (
 )
 
 var (
-	testRouter     *gin.Engine
+	testRouter      *gin.Engine
 	superAdminToken string
 	adminToken      string
-	createdAdminID  float64
 )
 
 func TestMain(m *testing.M) {
@@ -34,13 +34,12 @@ func TestMain(m *testing.M) {
 
 	// Init config with test values
 	config.AppConfig = &config.Config{
-		Port:           "8080",
-		DBDriver:       "sqlite",
-		DBDSN:          ":memory:",
-		JWTSecret:      "test-secret",
-		SuperAdminUser: "admin",
-		SuperAdminPass: "admin123",
-		GinMode:        "test",
+		Port:              "8080",
+		DBDriver:          "sqlite",
+		DBDSN:             ":memory:",
+		JWTSecret:         "test-secret",
+		SuperAdminPasskey: "super-secret",
+		GinMode:           "test",
 	}
 
 	if err := database.InitDB("sqlite", ":memory:"); err != nil {
@@ -49,13 +48,13 @@ func TestMain(m *testing.M) {
 	if err := database.Migrate(); err != nil {
 		panic(err)
 	}
-	database.Seed("admin", "admin123")
+	database.Seed()
 
 	testRouter = gin.New()
 	router.Setup(testRouter)
 
 	// Get super admin token
-	superAdminToken = loginAs("admin", "admin123")
+	superAdminToken = loginAs("super-secret")
 
 	os.Exit(m.Run())
 }
@@ -78,11 +77,8 @@ func doRequest(method, path string, body interface{}, token string) *httptest.Re
 	return w
 }
 
-func loginAs(username, password string) string {
-	w := doRequest("POST", "/api/auth/login", map[string]string{
-		"username": username,
-		"password": password,
-	}, "")
+func loginAs(passkey string) string {
+	w := doRequest("POST", "/api/auth/login", map[string]string{"passkey": passkey}, "")
 	var resp map[string]interface{}
 	json.Unmarshal(w.Body.Bytes(), &resp)
 	return resp["token"].(string)
@@ -102,11 +98,8 @@ func parseJSONArray(w *httptest.ResponseRecorder) []interface{} {
 
 // --- Auth Tests ---
 
-func TestLogin_Success(t *testing.T) {
-	w := doRequest("POST", "/api/auth/login", map[string]string{
-		"username": "admin",
-		"password": "admin123",
-	}, "")
+func TestLogin_SuperAdmin(t *testing.T) {
+	w := doRequest("POST", "/api/auth/login", map[string]string{"passkey": "super-secret"}, "")
 	if w.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
 	}
@@ -115,19 +108,13 @@ func TestLogin_Success(t *testing.T) {
 		t.Fatal("expected token in response")
 	}
 	user := resp["user"].(map[string]interface{})
-	if user["username"] != "admin" {
-		t.Fatalf("expected username admin, got %v", user["username"])
-	}
 	if user["role"] != "super_admin" {
 		t.Fatalf("expected role super_admin, got %v", user["role"])
 	}
 }
 
-func TestLogin_InvalidPassword(t *testing.T) {
-	w := doRequest("POST", "/api/auth/login", map[string]string{
-		"username": "admin",
-		"password": "wrong",
-	}, "")
+func TestLogin_InvalidPasskey(t *testing.T) {
+	w := doRequest("POST", "/api/auth/login", map[string]string{"passkey": "wrong"}, "")
 	if w.Code != http.StatusUnauthorized {
 		t.Fatalf("expected 401, got %d", w.Code)
 	}
@@ -140,14 +127,57 @@ func TestLogin_MissingFields(t *testing.T) {
 	}
 }
 
+func TestLogin_RateLimited(t *testing.T) {
+	body, _ := json.Marshal(map[string]string{"passkey": "wrong"})
+	var w *httptest.ResponseRecorder
+	for i := 0; i < 6; i++ {
+		req, _ := http.NewRequest("POST", "/api/auth/login", bytes.NewBuffer(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.RemoteAddr = "203.0.113.9:1234"
+		w = httptest.NewRecorder()
+		testRouter.ServeHTTP(w, req)
+	}
+	if w.Code != http.StatusTooManyRequests {
+		t.Fatalf("expected 429 after repeated failures, got %d", w.Code)
+	}
+}
+
+func TestLogin_RateLimitedConcurrently(t *testing.T) {
+	body, _ := json.Marshal(map[string]string{"passkey": "wrong"})
+	codes := make(chan int, 20)
+	var wg sync.WaitGroup
+	for i := 0; i < 20; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			req, _ := http.NewRequest("POST", "/api/auth/login", bytes.NewBuffer(body))
+			req.Header.Set("Content-Type", "application/json")
+			req.RemoteAddr = "203.0.113.10:1234"
+			w := httptest.NewRecorder()
+			testRouter.ServeHTTP(w, req)
+			codes <- w.Code
+		}()
+	}
+	wg.Wait()
+	close(codes)
+	checked := 0
+	for code := range codes {
+		if code == http.StatusUnauthorized {
+			checked++
+		}
+	}
+	if checked > 5 {
+		t.Fatalf("expected at most 5 passkey checks, got %d", checked)
+	}
+}
+
 func TestMe(t *testing.T) {
 	w := doRequest("GET", "/api/auth/me", nil, superAdminToken)
 	if w.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
 	}
-	resp := parseJSON(w)
-	if resp["username"] != "admin" {
-		t.Fatalf("expected username admin, got %v", resp["username"])
+	if resp := parseJSON(w); resp["role"] != "super_admin" {
+		t.Fatalf("expected role super_admin, got %v", resp["role"])
 	}
 }
 
@@ -158,79 +188,66 @@ func TestMe_Unauthorized(t *testing.T) {
 	}
 }
 
-// --- Users Tests ---
+// --- Admin Passkey Tests ---
 
-func TestCreateUser(t *testing.T) {
-	w := doRequest("POST", "/api/users", map[string]string{
-		"username": "testadmin",
-		"password": "testpass123",
-		"role":     "admin",
-	}, superAdminToken)
-	if w.Code != http.StatusCreated {
-		t.Fatalf("expected 201, got %d: %s", w.Code, w.Body.String())
-	}
-	resp := parseJSON(w)
-	if resp["username"] != "testadmin" {
-		t.Fatalf("expected username testadmin, got %v", resp["username"])
-	}
-	createdAdminID = resp["id"].(float64)
-
-	// Login as the new admin to get a token for later tests
-	adminToken = loginAs("testadmin", "testpass123")
-}
-
-func TestListUsers(t *testing.T) {
-	w := doRequest("GET", "/api/users", nil, superAdminToken)
-	if w.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d", w.Code)
-	}
-	users := parseJSONArray(w)
-	if len(users) < 2 {
-		t.Fatalf("expected at least 2 users, got %d", len(users))
+func TestAdminLogin_NoPasskeySet(t *testing.T) {
+	w := doRequest("POST", "/api/auth/login", map[string]string{"passkey": "admin-pass-1"}, "")
+	if w.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401 before an admin passkey is set, got %d", w.Code)
 	}
 }
 
-func TestDeleteUser_Self(t *testing.T) {
-	// Super admin tries to delete themselves
-	w := doRequest("GET", "/api/auth/me", nil, superAdminToken)
-	me := parseJSON(w)
-	myID := me["id"].(float64)
-
-	w = doRequest("DELETE", fmt.Sprintf("/api/users/%d", int(myID)), nil, superAdminToken)
-	if w.Code != http.StatusBadRequest {
-		t.Fatalf("expected 400, got %d: %s", w.Code, w.Body.String())
-	}
-}
-
-func TestDeleteUser(t *testing.T) {
-	if createdAdminID == 0 {
-		t.Skip("no admin created to delete")
-	}
-	w := doRequest("DELETE", fmt.Sprintf("/api/users/%d", int(createdAdminID)), nil, superAdminToken)
+func TestSetAdminPasskey(t *testing.T) {
+	w := doRequest("PUT", "/api/auth/admin-passkey", map[string]string{"passkey": "admin-pass-1"}, superAdminToken)
 	if w.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
 	}
-
-	// Recreate the admin for subsequent tests
-	doRequest("POST", "/api/users", map[string]string{
-		"username": "testadmin2",
-		"password": "testpass123",
-		"role":     "admin",
-	}, superAdminToken)
-	adminToken = loginAs("testadmin2", "testpass123")
+	adminToken = loginAs("admin-pass-1")
+	w = doRequest("GET", "/api/auth/me", nil, adminToken)
+	if resp := parseJSON(w); resp["role"] != "admin" {
+		t.Fatalf("expected role admin, got %v", resp["role"])
+	}
 }
 
-func TestCreateUser_Forbidden(t *testing.T) {
-	if adminToken == "" {
-		t.Skip("no admin token")
+func TestSetAdminPasskey_Validation(t *testing.T) {
+	for _, passkey := range []string{"short", "super-secret"} {
+		w := doRequest("PUT", "/api/auth/admin-passkey", map[string]string{"passkey": passkey}, superAdminToken)
+		if w.Code != http.StatusBadRequest {
+			t.Fatalf("passkey %q: expected 400, got %d", passkey, w.Code)
+		}
 	}
-	w := doRequest("POST", "/api/users", map[string]string{
-		"username": "shouldfail",
-		"password": "testpass123",
-		"role":     "admin",
-	}, adminToken)
+}
+
+func TestSetAdminPasskey_RevokesSessions(t *testing.T) {
+	oldToken := adminToken
+	w := doRequest("PUT", "/api/auth/admin-passkey", map[string]string{"passkey": "admin-pass-2"}, superAdminToken)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+	if w := doRequest("GET", "/api/auth/me", nil, oldToken); w.Code != http.StatusUnauthorized {
+		t.Fatalf("old admin token: expected 401, got %d", w.Code)
+	}
+	if w := doRequest("POST", "/api/auth/login", map[string]string{"passkey": "admin-pass-1"}, ""); w.Code != http.StatusUnauthorized {
+		t.Fatalf("old admin passkey: expected 401, got %d", w.Code)
+	}
+	if w := doRequest("GET", "/api/auth/me", nil, superAdminToken); w.Code != http.StatusOK {
+		t.Fatalf("super admin token should survive, got %d", w.Code)
+	}
+	adminToken = loginAs("admin-pass-2")
+}
+
+func TestSetAdminPasskey_Forbidden(t *testing.T) {
+	w := doRequest("PUT", "/api/auth/admin-passkey", map[string]string{"passkey": "admin-pass-3"}, adminToken)
 	if w.Code != http.StatusForbidden {
 		t.Fatalf("expected 403, got %d", w.Code)
+	}
+}
+
+func TestSuperAdminPasskeyChange_RevokesSessions(t *testing.T) {
+	config.AppConfig.SuperAdminPasskey = "rotated-secret"
+	defer func() { config.AppConfig.SuperAdminPasskey = "super-secret" }()
+	if w := doRequest("GET", "/api/auth/me", nil, superAdminToken); w.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401 after env passkey change, got %d", w.Code)
 	}
 }
 

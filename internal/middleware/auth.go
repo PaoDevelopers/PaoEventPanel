@@ -32,9 +32,16 @@ func AuthRequired() gin.HandlerFunc {
 			return
 		}
 
-		c.Set("user_id", uint(claims["user_id"].(float64)))
-		c.Set("username", claims["username"].(string))
-		c.Set("role", claims["role"].(string))
+		role, _ := claims["role"].(string)
+		version, _ := claims["ver"].(string)
+		// Tokens die as soon as the passkey they were issued for changes
+		if !service.SessionValid(role, version) {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid token"})
+			c.Abort()
+			return
+		}
+
+		c.Set("role", role)
 		c.Next()
 	}
 }

@@ -84,12 +84,11 @@ export function Sidebar({ settings, stats, houses, onStudentAdded, onSettingsCha
                         className="text-sm font-medium text-white"
                         style={{ backgroundColor: "var(--theme-primary)" }}
                       >
-                        {user.username.charAt(0).toUpperCase()}
+                        {user.role === "super_admin" ? "S" : "A"}
                       </AvatarFallback>
                     </Avatar>
                     <div className="flex-1 text-left">
-                      <div className="text-sm font-medium text-[var(--text-primary)]">{user.username}</div>
-                      <div className="text-xs text-[var(--text-secondary)]">
+                      <div className="text-sm font-medium text-[var(--text-primary)]">
                         {user.role === "super_admin" ? "Super Admin" : "Admin"}
                       </div>
                     </div>

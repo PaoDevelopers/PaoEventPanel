@@ -158,8 +158,6 @@ func AddLaps(c *gin.Context) {
 		newCount = 0
 	}
 
-	adminID, _ := c.Get("user_id")
-
 	tx := database.DB.Begin()
 
 	student.LapCount = newCount
@@ -172,7 +170,6 @@ func AddLaps(c *gin.Context) {
 	record := model.LapRecord{
 		StudentID: uint(id),
 		Delta:     req.Delta,
-		AdminID:   adminID.(uint),
 	}
 	if err := tx.Create(&record).Error; err != nil {
 		tx.Rollback()
@@ -206,8 +203,6 @@ func SetLaps(c *gin.Context) {
 	}
 
 	delta := req.LapCount - student.LapCount
-	adminID, _ := c.Get("user_id")
-
 	tx := database.DB.Begin()
 
 	student.LapCount = req.LapCount
@@ -220,7 +215,6 @@ func SetLaps(c *gin.Context) {
 	record := model.LapRecord{
 		StudentID: uint(id),
 		Delta:     delta,
-		AdminID:   adminID.(uint),
 	}
 	if err := tx.Create(&record).Error; err != nil {
 		tx.Rollback()

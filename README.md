@@ -28,15 +28,15 @@ A real-time lap-counting leaderboard system for school events. Track laps, displ
 ### Docker (Recommended)
 
 ```bash
-docker compose up -d
+SUPER_ADMIN_PASSKEY=strongpass docker compose up -d
 ```
 
-Visit http://localhost:8080. Default admin credentials: `admin` / `admin123`.
+Visit http://localhost:8080 and sign in with the super admin passkey, then set the shared admin passkey in Settings → Admins.
 
 Customize with environment variables:
 
 ```bash
-JWT_SECRET=your-secret SUPER_ADMIN_PASS=strongpass docker compose up -d
+JWT_SECRET=your-secret SUPER_ADMIN_PASSKEY=strongpass docker compose up -d
 ```
 
 ### Local Development
@@ -75,8 +75,7 @@ Configure via environment variables or a `.env` file:
 | `DB_DRIVER` | `sqlite` | Database driver (`sqlite` or `postgres`) |
 | `DB_DSN` | `pao_event.db` | Database connection string |
 | `JWT_SECRET` | `change-me-in-production` | JWT signing secret |
-| `SUPER_ADMIN_USER` | `admin` | Initial super admin username |
-| `SUPER_ADMIN_PASS` | `admin123` | Initial super admin password |
+| `SUPER_ADMIN_PASSKEY` | _(none)_ | Super admin passkey; unset disables super admin login. The shared admin passkey is set in Settings → Admins |
 
 PostgreSQL example:
 
@@ -117,7 +116,7 @@ PaoEventPanel/
 
 | Method | Path | Description |
 |---|---|---|
-| POST | `/api/auth/login` | Authenticate and get JWT |
+| POST | `/api/auth/login` | Sign in with a passkey and get JWT |
 | GET | `/api/rankings/houses` | House rankings |
 | GET | `/api/rankings/students` | Student rankings |
 | GET | `/api/rankings/stats` | Aggregate stats |
@@ -141,7 +140,7 @@ PaoEventPanel/
 | PUT | `/api/activity` | Update activity settings |
 | POST | `/api/upload/logo` | Upload logo |
 | POST | `/api/upload/background` | Upload background image |
-| GET/POST/DELETE | `/api/users` | User management |
+| PUT | `/api/auth/admin-passkey` | Change the admin passkey (signs all admins out) |
 | GET | `/api/houses` | List houses |
 | PUT | `/api/houses/:id/color` | Update house color |
 | GET/POST/DELETE | `/api/theme-presets` | Theme preset management |

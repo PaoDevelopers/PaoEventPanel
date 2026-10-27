@@ -24,7 +24,7 @@ func main() {
 		log.Fatalf("Failed to migrate database: %v", err)
 	}
 
-	database.Seed(config.AppConfig.SuperAdminUser, config.AppConfig.SuperAdminPass)
+	database.Seed()
 
 	if err := os.MkdirAll("uploads", 0755); err != nil {
 		log.Fatalf("Failed to create uploads directory: %v", err)

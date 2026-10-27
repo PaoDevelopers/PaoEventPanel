@@ -9,8 +9,7 @@ services:
       - DB_DRIVER=sqlite
       - DB_DSN=/app/data/pao_event.db
       - JWT_SECRET=${JWT_SECRET:-change-me-to-a-random-secret}
-      - SUPER_ADMIN_USER=${SUPER_ADMIN_USER:-admin}
-      - SUPER_ADMIN_PASS=${SUPER_ADMIN_PASS:-admin123}
+      - SUPER_ADMIN_PASSKEY=${SUPER_ADMIN_PASSKEY}
     volumes:
       - db-data:/app/data
       - uploads:/app/uploads

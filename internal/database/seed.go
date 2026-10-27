@@ -3,14 +3,11 @@ package database
 import (
 	"log"
 
-	"golang.org/x/crypto/bcrypt"
-
 	"github.com/keren/pao-event-panel/internal/model"
 )
 
-func Seed(superAdminUser, superAdminPass string) {
+func Seed() {
 	seedHouses()
-	seedSuperAdmin(superAdminUser, superAdminPass)
 	seedActivitySettings()
 }
 
@@ -24,29 +21,6 @@ func seedHouses() {
 			}
 		}
 	}
-}
-
-func seedSuperAdmin(username, password string) {
-	var count int64
-	DB.Model(&model.User{}).Where("role = ?", model.RoleSuperAdmin).Count(&count)
-	if count > 0 {
-		return
-	}
-
-	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-	if err != nil {
-		log.Fatalf("Failed to hash super admin password: %v", err)
-	}
-
-	user := model.User{
-		Username: username,
-		Password: string(hash),
-		Role:     model.RoleSuperAdmin,
-	}
-	if err := DB.Create(&user).Error; err != nil {
-		log.Fatalf("Failed to create super admin: %v", err)
-	}
-	log.Printf("Super admin '%s' created", username)
 }
 
 func seedActivitySettings() {

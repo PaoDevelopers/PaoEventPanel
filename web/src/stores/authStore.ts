@@ -9,7 +9,7 @@ interface AuthState {
   user: User | null;
   isLoggedIn: boolean;
   isVerifying: boolean;
-  login: (username: string, password: string) => Promise<void>;
+  login: (passkey: string) => Promise<void>;
   logout: () => void;
   expireSession: () => void;
   init: () => void;
@@ -59,8 +59,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   isLoggedIn: false,
   isVerifying: false,
 
-  login: async (username: string, password: string) => {
-    const result = await apiLogin(username, password);
+  login: async (passkey: string) => {
+    const result = await apiLogin(passkey);
     localStorage.setItem("token", result.token);
     localStorage.setItem("user", JSON.stringify(result.user));
     set({ token: result.token, user: result.user, isLoggedIn: true, isVerifying: false });

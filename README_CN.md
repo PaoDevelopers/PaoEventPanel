@@ -28,15 +28,15 @@
 ### Docker（推荐）
 
 ```bash
-docker compose up -d
+SUPER_ADMIN_PASSKEY=strongpass docker compose up -d
 ```
 
-访问 http://localhost:8080，默认管理员账号 `admin` / `admin123`。
+访问 http://localhost:8080，使用超级管理员通行码登录，然后在 设置 → Admins 中设置管理员通行码。
 
 通过环境变量自定义配置：
 
 ```bash
-JWT_SECRET=your-secret SUPER_ADMIN_PASS=strongpass docker compose up -d
+JWT_SECRET=your-secret SUPER_ADMIN_PASSKEY=strongpass docker compose up -d
 ```
 
 ### 本地开发
@@ -75,8 +75,7 @@ make build
 | `DB_DRIVER` | `sqlite` | 数据库驱动（`sqlite` 或 `postgres`） |
 | `DB_DSN` | `pao_event.db` | 数据库连接字符串 |
 | `JWT_SECRET` | `change-me-in-production` | JWT 签名密钥 |
-| `SUPER_ADMIN_USER` | `admin` | 初始超级管理员用户名 |
-| `SUPER_ADMIN_PASS` | `admin123` | 初始超级管理员密码 |
+| `SUPER_ADMIN_PASSKEY` | _(无)_ | 超级管理员通行码；未设置则无法以超级管理员登录。管理员通行码在 设置 → Admins 中设置 |
 
 PostgreSQL 连接示例：
 
@@ -117,7 +116,7 @@ PaoEventPanel/
 
 | 方法 | 路径 | 说明 |
 |---|---|---|
-| POST | `/api/auth/login` | 登录获取 JWT |
+| POST | `/api/auth/login` | 使用通行码登录获取 JWT |
 | GET | `/api/rankings/houses` | 学院排名 |
 | GET | `/api/rankings/students` | 学生排名 |
 | GET | `/api/rankings/stats` | 统计数据 |
@@ -141,7 +140,7 @@ PaoEventPanel/
 | PUT | `/api/activity` | 更新活动设置 |
 | POST | `/api/upload/logo` | 上传 Logo |
 | POST | `/api/upload/background` | 上传背景图 |
-| GET/POST/DELETE | `/api/users` | 用户管理 |
+| PUT | `/api/auth/admin-passkey` | 修改管理员通行码（所有管理员需重新登录） |
 | GET | `/api/houses` | 学院列表 |
 | PUT | `/api/houses/:id/color` | 修改学院颜色 |
 | GET/POST/DELETE | `/api/theme-presets` | 主题预设管理 |

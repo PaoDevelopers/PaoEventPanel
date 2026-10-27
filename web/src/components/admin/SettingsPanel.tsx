@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useAuthStore } from "@/stores/authStore";
+import { toast } from "sonner";
 import {
  Dialog,
   DialogContent,
@@ -24,9 +24,10 @@ import {
  applyThemePreset,
   applyBuiltinPreset,
 } from "@/api/themePresets";
-import { getUsers, createUser, deleteUser } from "@/api/users";
+import { setAdminPasskey } from "@/api/auth";
+import { notifyActionError } from "@/lib/notify";
 import { getHouses, updateHouseColor } from "@/api/houses";
-import type { ActivitySettings, User, House, ThemePreset, BuiltinThemePreset } from "@/types";
+import type { ActivitySettings, House, ThemePreset, BuiltinThemePreset } from "@/types";
 import { ChevronDown, ChevronRight, X, Save, Download, Upload, Database } from "lucide-react";
 import { exportRankings } from "@/api/export";
 import { getAutocompleteStatus, uploadAutocompleteDB, downloadAutocompleteTemplate, type AutocompleteStatus } from "@/api/autocomplete";
@@ -44,14 +45,11 @@ interface SettingsPanelProps {
 }
 
 export function SettingsPanel({ open, onOpenChange, onSettingsChanged }: SettingsPanelProps) {
-  const { user: currentUser } = useAuthStore();
  const [settings, setSettings] = useState<ActivitySettings | null>(null);
-  const [users, setUsers] = useState<User[]>([]);
  const [houses, setHouses] = useState<House[]>([]);
   const [customPresets, setCustomPresets] = useState<ThemePreset[]>([]);
-  const [newUsername, setNewUsername] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [newRole, setNewRole] = useState("admin");
+  const [newAdminPasskey, setNewAdminPasskey] = useState("");
+  const [savingPasskey, setSavingPasskey] = useState(false);
   const [newPresetName, setNewPresetName] = useState("");
  const [saving, setSaving] = useState(false);
   const [savingPreset, setSavingPreset] = useState(false);
@@ -63,7 +61,6 @@ export function SettingsPanel({ open, onOpenChange, onSettingsChanged }: Setting
   useEffect(() => {
     if (open) {
       getActivitySettings().then(setSettings);
-      getUsers().then(setUsers);
     getHouses().then(setHouses);
    getThemePresets().then(setCustomPresets);
       getAutocompleteStatus().then(setDirectoryStatus).catch(() => {});
@@ -96,25 +93,16 @@ export function SettingsPanel({ open, onOpenChange, onSettingsChanged }: Setting
     await saveField(field, path);
   };
 
-  const handleCreateUser = async () => {
-    if (!newUsername || !newPassword) return;
-  try {
-    await createUser(newUsername, newPassword, newRole);
-   setNewUsername("");
-    setNewPassword("");
-     const updated = await getUsers();
-   setUsers(updated);
-    } catch {
-      // ignore
-   }
-  };
-
-  const handleDeleteUser = async (id: number) => {
+  const handleSetAdminPasskey = async () => {
+    setSavingPasskey(true);
     try {
-    await deleteUser(id);
-    setUsers(users.filter((u) => u.id !== id));
-    } catch {
-    // ignore
+      await setAdminPasskey(newAdminPasskey);
+      setNewAdminPasskey("");
+      toast.success("Admin passkey updated. Admins must sign in again.");
+    } catch (error) {
+      notifyActionError(error, "Couldn't update the admin passkey");
+    } finally {
+      setSavingPasskey(false);
     }
   };
 
@@ -584,45 +572,13 @@ export function SettingsPanel({ open, onOpenChange, onSettingsChanged }: Setting
         </TabsContent>
 
        {/* Admins Tab */}
-     <TabsContent value="admins" className="space-y-4 mt-4">
-           <div className="space-y-2">
-          {users.map((u) => (
-       <div key={u.id} className="flex items-center justify-between rounded-lg border border-[var(--border-color)] bg-[var(--card-bg-secondary)] px-3 py-2">
-          <div>
-           <span className="text-sm text-[var(--text-primary)]">{u.username}</span>
-       <span className="ml-2 text-xs text-[var(--text-secondary)]">
-        {u.role === "super_admin" ? "Super Admin" : "Admin"}
-          </span>
-            </div>
-          {currentUser?.username !== u.username && (
-         <Button size="sm" variant="ghost" className="h-7 text-xs text-[#E57373] hover:bg-[var(--card-bg-secondary)] hover:text-[#E57373]" onClick={() => handleDeleteUser(u.id)}>Delete</Button>
-        )}
-         </div>
-    ))}
-        </div>
-
-        <Separator className="bg-[var(--border-color)]" />
-
-         <div className="space-y-3">
-      <Label className="text-[var(--text-secondary)]">Add Admin</Label>
-            <Input placeholder="Username" value={newUsername} onChange={(e) => setNewUsername(e.target.value)} className="border-[var(--border-color)] bg-[var(--card-bg-secondary)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)]" />
-      <Input type="password" placeholder="Password (min 6 chars)" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className="border-[var(--border-color)] bg-[var(--card-bg-secondary)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)]" />
-        <div className="flex gap-2">
-          {(["admin", "super_admin"] as const).map((role) => (
-         <Button
-         key={role}
-          size="sm"
-            variant={newRole === role ? "default" : "outline"}
-          onClick={() => setNewRole(role)}
-         className={newRole === role ? "" : "border-[var(--border-color)] bg-[var(--card-bg)] text-[var(--text-primary)] hover:bg-[var(--card-bg-secondary)]"}
-      style={newRole === role ? { backgroundColor: "var(--theme-primary)" } : undefined}
-         >
-           {role === "super_admin" ? "Super Admin" : "Admin"}
-       </Button>
-        ))}
-        </div>
-         <Button className="w-full" disabled={!newUsername || !newPassword || newPassword.length < 6} onClick={handleCreateUser} style={{ backgroundColor: "var(--theme-primary)" }}>Add</Button>
-       </div>
+     <TabsContent value="admins" className="space-y-3 mt-4">
+          <Label htmlFor="admin-passkey" className="text-[var(--text-secondary)]">Admin Passkey</Label>
+          <p className="text-xs text-[var(--text-muted)]">
+            Everyone who enters this passkey signs in as an admin. Changing it signs all admins out.
+          </p>
+          <Input id="admin-passkey" type="password" autoComplete="new-password" placeholder="New passkey (min 6 chars)" value={newAdminPasskey} onChange={(e) => setNewAdminPasskey(e.target.value)} className="border-[var(--border-color)] bg-[var(--card-bg-secondary)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)]" />
+          <Button className="w-full" disabled={savingPasskey || newAdminPasskey.length < 6} onClick={handleSetAdminPasskey} style={{ backgroundColor: "var(--theme-primary)" }}>Set Passkey</Button>
           </TabsContent>
 
        {/* Data Tab */}

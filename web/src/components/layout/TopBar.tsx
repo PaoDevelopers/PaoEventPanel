@@ -37,7 +37,7 @@ export function TopBar({ onStudentAdded, onSettingsChanged }: TopBarProps) {
                   className="text-sm font-medium text-white"
                   style={{ backgroundColor: "var(--theme-primary)" }}
                 >
-                  {user.username.charAt(0).toUpperCase()}
+                  {user.role === "super_admin" ? "S" : "A"}
                 </AvatarFallback>
               </Avatar>
           </DropdownMenuTrigger>

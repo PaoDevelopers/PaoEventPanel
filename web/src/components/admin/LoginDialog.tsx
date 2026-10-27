@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { isAxiosError } from "axios";
 import {
   Dialog,
   DialogContent,
@@ -16,8 +17,7 @@ interface LoginDialogProps {
 }
 
 export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
+  const [passkey, setPasskey] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const { login } = useAuthStore();
@@ -27,12 +27,15 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
     setError("");
     setLoading(true);
     try {
-      await login(username, password);
+      await login(passkey);
       onOpenChange(false);
-      setUsername("");
-      setPassword("");
-    } catch {
-      setError("Invalid username or password");
+      setPasskey("");
+    } catch (error) {
+      setError(
+        isAxiosError(error) && error.response?.status === 429
+          ? "Too many attempts. Try again in a minute."
+          : "Invalid passkey",
+      );
     } finally {
       setLoading(false);
     }
@@ -46,30 +49,23 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label className="text-[var(--text-secondary)]">Username</Label>
+            <Label htmlFor="login-passkey" className="text-[var(--text-secondary)]">Passkey</Label>
             <Input
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              className="border-[var(--border-color)] bg-[var(--card-bg-secondary)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)]"
-              placeholder="Enter username"
-              autoFocus
-            />
-          </div>
-          <div className="space-y-2">
-            <Label className="text-[var(--text-secondary)]">Password</Label>
-            <Input
+              id="login-passkey"
               type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              value={passkey}
+              onChange={(e) => setPasskey(e.target.value)}
               className="border-[var(--border-color)] bg-[var(--card-bg-secondary)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)]"
-              placeholder="Enter password"
+              placeholder="Enter passkey"
+              autoComplete="current-password"
+              autoFocus
             />
           </div>
           {error && <p className="text-sm text-[#E57373]">{error}</p>}
           <Button
             type="submit"
             className="w-full"
-            disabled={loading || !username || !password}
+            disabled={loading || !passkey}
             style={{ backgroundColor: "var(--theme-primary)" }}
           >
             {loading ? "Signing in..." : "Sign In"}

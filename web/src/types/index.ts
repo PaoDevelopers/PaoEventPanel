@@ -108,8 +108,6 @@ export interface BuiltinThemePreset {
 }
 
 export interface User {
-  id: number;
-  username: string;
   role: "admin" | "super_admin";
 }
 

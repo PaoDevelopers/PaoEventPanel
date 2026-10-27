@@ -1,9 +1,13 @@
 import api from "./client";
 import type { LoginResponse, User } from "@/types";
 
-export async function login(username: string, password: string): Promise<LoginResponse> {
-  const { data } = await api.post<LoginResponse>("/auth/login", { username, password });
+export async function login(passkey: string): Promise<LoginResponse> {
+  const { data } = await api.post<LoginResponse>("/auth/login", { passkey });
   return data;
+}
+
+export async function setAdminPasskey(passkey: string): Promise<void> {
+  await api.put("/auth/admin-passkey", { passkey });
 }
 
 export async function getMe(): Promise<User> {

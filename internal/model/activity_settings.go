@@ -39,6 +39,9 @@ type ActivitySettings struct {
 	DarkCardBlur    int `gorm:"default:16" json:"dark_card_blur"`    // 0-24 px
 	// Weather
 	WeatherLocation string `gorm:"size:128" json:"weather_location"` // City name or empty for IP-based
+	// Admin login; never serialized, and not in UpdateActivity's allowed fields
+	AdminPasskeyHash    string `gorm:"size:255" json:"-"`
+	AdminPasskeyVersion int    `gorm:"not null;default:0" json:"-"`
 	UpdatedAt       time.Time `json:"updated_at"`
 }
 
