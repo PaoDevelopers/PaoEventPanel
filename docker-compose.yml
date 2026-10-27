@@ -11,10 +11,6 @@ services:
       - JWT_SECRET=${JWT_SECRET:-change-me-to-a-random-secret}
       - SUPER_ADMIN_PASSKEY=${SUPER_ADMIN_PASSKEY}
     volumes:
-      - db-data:/app/data
-      - uploads:/app/uploads
+      - ./data:/app/data
+      - ./data/uploads:/app/uploads
     restart: unless-stopped
-
-volumes:
-  db-data:
-  uploads:
