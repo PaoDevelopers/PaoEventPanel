@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { isAxiosError } from "axios";
 import {
   Dialog,
   DialogContent,
@@ -30,12 +29,8 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
       await login(passkey);
       onOpenChange(false);
       setPasskey("");
-    } catch (error) {
-      setError(
-        isAxiosError(error) && error.response?.status === 429
-          ? "Too many attempts. Try again in a minute."
-          : "Invalid passkey",
-      );
+    } catch {
+      setError("Invalid passkey");
     } finally {
       setLoading(false);
     }

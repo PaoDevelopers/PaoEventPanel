@@ -13,7 +13,6 @@ import (
 	"net/http/httptest"
 	"net/textproto"
 	"os"
-	"sync"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -124,50 +123,6 @@ func TestLogin_MissingFields(t *testing.T) {
 	w := doRequest("POST", "/api/auth/login", map[string]string{}, "")
 	if w.Code != http.StatusBadRequest {
 		t.Fatalf("expected 400, got %d", w.Code)
-	}
-}
-
-func TestLogin_RateLimited(t *testing.T) {
-	body, _ := json.Marshal(map[string]string{"passkey": "wrong"})
-	var w *httptest.ResponseRecorder
-	for i := 0; i < 6; i++ {
-		req, _ := http.NewRequest("POST", "/api/auth/login", bytes.NewBuffer(body))
-		req.Header.Set("Content-Type", "application/json")
-		req.RemoteAddr = "203.0.113.9:1234"
-		w = httptest.NewRecorder()
-		testRouter.ServeHTTP(w, req)
-	}
-	if w.Code != http.StatusTooManyRequests {
-		t.Fatalf("expected 429 after repeated failures, got %d", w.Code)
-	}
-}
-
-func TestLogin_RateLimitedConcurrently(t *testing.T) {
-	body, _ := json.Marshal(map[string]string{"passkey": "wrong"})
-	codes := make(chan int, 20)
-	var wg sync.WaitGroup
-	for i := 0; i < 20; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			req, _ := http.NewRequest("POST", "/api/auth/login", bytes.NewBuffer(body))
-			req.Header.Set("Content-Type", "application/json")
-			req.RemoteAddr = "203.0.113.10:1234"
-			w := httptest.NewRecorder()
-			testRouter.ServeHTTP(w, req)
-			codes <- w.Code
-		}()
-	}
-	wg.Wait()
-	close(codes)
-	checked := 0
-	for code := range codes {
-		if code == http.StatusUnauthorized {
-			checked++
-		}
-	}
-	if checked > 5 {
-		t.Fatalf("expected at most 5 passkey checks, got %d", checked)
 	}
 }
 
