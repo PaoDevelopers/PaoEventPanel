@@ -24,7 +24,7 @@ export async function getAutocompleteStatus(): Promise<AutocompleteStatus> {
   return data;
 }
 
-export async function uploadAutocompleteDB(file: File): Promise<{ count: number }> {
+export async function uploadAutocompleteCSV(file: File): Promise<{ count: number }> {
   const formData = new FormData();
   formData.append("file", file);
   const { data } = await api.post<{ message: string; count: number }>(
@@ -39,7 +39,7 @@ export async function downloadAutocompleteTemplate(): Promise<void> {
   const url = window.URL.createObjectURL(data);
   const a = document.createElement("a");
   a.href = url;
-  a.download = "template.db";
+  a.download = "students_template.csv";
   a.click();
   window.URL.revokeObjectURL(url);
 }

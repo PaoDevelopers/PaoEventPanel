@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
+import { isAxiosError } from "axios";
 import {
  Dialog,
   DialogContent,
@@ -30,7 +31,7 @@ import { getHouses, updateHouseColor } from "@/api/houses";
 import type { ActivitySettings, House, ThemePreset, BuiltinThemePreset } from "@/types";
 import { ChevronDown, ChevronRight, X, Save, Download, Upload, Database } from "lucide-react";
 import { exportRankings } from "@/api/export";
-import { getAutocompleteStatus, uploadAutocompleteDB, downloadAutocompleteTemplate, type AutocompleteStatus } from "@/api/autocomplete";
+import { getAutocompleteStatus, uploadAutocompleteCSV, downloadAutocompleteTemplate, type AutocompleteStatus } from "@/api/autocomplete";
 const BUILTIN_PRESETS: BuiltinThemePreset[] = [
   { slug: "default", name: "Default", is_builtin: true, primary_color: "#7CB99A", accent_color: "#9ABBE0", dark_primary_color: "#8ECFAB", dark_accent_color: "#A8C8E8" },
  { slug: "ocean", name: "Ocean", is_builtin: true, primary_color: "#00897B", accent_color: "#0288D1", dark_primary_color: "#4DB6AC", dark_accent_color: "#4FC3F7" },
@@ -613,26 +614,30 @@ export function SettingsPanel({ open, onOpenChange, onSettingsChanged }: Setting
                 onClick={() => {
                   const input = document.createElement("input");
                   input.type = "file";
-                  input.accept = ".db";
+                  input.accept = ".csv,text/csv";
                   input.onchange = async () => {
                     const file = input.files?.[0];
                     if (!file) return;
                     setUploadingDirectory(true);
                     try {
-                      const result = await uploadAutocompleteDB(file);
+                      const result = await uploadAutocompleteCSV(file);
                       setDirectoryStatus({ loaded: true, count: result.count });
-                    } catch { /* ignore */ }
+                      toast.success(`Imported ${result.count} students`);
+                    } catch (error) {
+                      const message = isAxiosError(error) ? error.response?.data?.error : undefined;
+                      notifyActionError(error, message ?? "Failed to import students");
+                    }
                     finally { setUploadingDirectory(false); }
                   };
                   input.click();
                 }}
               >
                 <Upload className="mr-1.5 h-3.5 w-3.5" />
-                {uploadingDirectory ? "Uploading..." : "Upload Directory"}
+                {uploadingDirectory ? "Importing..." : "Import CSV"}
               </Button>
             </div>
             <p className="text-xs text-[var(--text-muted)]">
-              Upload a SQLite database with student info to enable name/ID autocomplete when adding students.
+              Import a CSV of students (id, name) to enable name/ID autocomplete when adding students. Importing replaces the current list.
             </p>
           </div>
 

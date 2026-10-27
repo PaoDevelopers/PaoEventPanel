@@ -13,12 +13,15 @@ import (
 	"net/http/httptest"
 	"net/textproto"
 	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/gin-gonic/gin"
 
 	"github.com/keren/pao-event-panel/config"
 	"github.com/keren/pao-event-panel/internal/database"
+	"github.com/keren/pao-event-panel/internal/handler"
 	"github.com/keren/pao-event-panel/internal/router"
 )
 
@@ -611,5 +614,54 @@ func TestAutocompleteSearch_EmptyQuery(t *testing.T) {
 	results := parseJSONArray(w)
 	if len(results) != 0 {
 		t.Fatalf("expected 0 results for empty query, got %d", len(results))
+	}
+}
+
+// --- Student Directory Tests ---
+
+func uploadDirectoryCSV(content string) *httptest.ResponseRecorder {
+	var body bytes.Buffer
+	mw := multipart.NewWriter(&body)
+	fw, _ := mw.CreateFormFile("file", "students.csv")
+	fw.Write([]byte(content))
+	mw.Close()
+	req, _ := http.NewRequest("POST", "/api/autocomplete/upload", &body)
+	req.Header.Set("Content-Type", mw.FormDataContentType())
+	req.Header.Set("Authorization", "Bearer "+superAdminToken)
+	w := httptest.NewRecorder()
+	testRouter.ServeHTTP(w, req)
+	return w
+}
+
+func TestUploadStudentDirectoryCSV(t *testing.T) {
+	handler.SetStudentDirectoryPath(filepath.Join(t.TempDir(), "students.db"))
+
+	w := uploadDirectoryCSV("\uFEFFid,name,grade,legal_sex\ns90001,Alex (Xiaoming 王小明) WANG,Y12,M\ns22501,Chen Wei,Y9,F\n")
+	if w.Code != http.StatusOK || parseJSON(w)["count"] != float64(2) {
+		t.Fatalf("upload: %d %s", w.Code, w.Body.String())
+	}
+
+	w = doRequest("GET", "/api/autocomplete/search?q=王小明", nil, superAdminToken)
+	results := parseJSONArray(w)
+	if len(results) != 1 || results[0].(map[string]interface{})["system_name"] != "Alex (Xiaoming 王小明) WANG" {
+		t.Fatalf("search: %s", w.Body.String())
+	}
+
+	// Invalid file is rejected and the existing directory is kept
+	w = uploadDirectoryCSV("id,name\ns1,A\ns1,B\n")
+	if w.Code != http.StatusBadRequest || !strings.Contains(parseJSON(w)["error"].(string), "row 3") {
+		t.Fatalf("duplicate: %d %s", w.Code, w.Body.String())
+	}
+	if w := uploadDirectoryCSV("id,grade\ns1,Y9\n"); w.Code != http.StatusBadRequest {
+		t.Fatalf("missing name column: %d", w.Code)
+	}
+	w = doRequest("GET", "/api/autocomplete/status", nil, superAdminToken)
+	if parseJSON(w)["count"] != float64(2) {
+		t.Fatalf("status after rejected upload: %s", w.Body.String())
+	}
+
+	w = doRequest("GET", "/api/autocomplete/template", nil, superAdminToken)
+	if w.Code != http.StatusOK || !strings.HasPrefix(w.Body.String(), "id,name,grade,legal_sex\n") {
+		t.Fatalf("template: %d %s", w.Code, w.Body.String())
 	}
 }

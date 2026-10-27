@@ -2,11 +2,13 @@ package handler
 
 import (
 	"database/sql"
+	"encoding/csv"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	_ "github.com/mattn/go-sqlite3"
@@ -14,7 +16,7 @@ import (
 	"github.com/keren/pao-event-panel/internal/model"
 )
 
-const studentDirectoryPath = "data/students.db"
+var studentDirectoryPath = "data/students.db"
 
 func SearchStudentDirectory(c *gin.Context) {
 	q := c.Query("q")
@@ -71,34 +73,72 @@ func GetDirectoryStatus(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"loaded": true, "count": count})
 }
 
+const directoryTemplateCSV = "id,name,grade,legal_sex\n" +
+	"s22501,Chen Wei,Y9,F\n" +
+	"s22502,Zhang Yu,Y10,F\n" +
+	"s22503,Li Ming,Y11,M\n"
+
 func DownloadDirectoryTemplate(c *gin.Context) {
-	tmpFile, err := os.CreateTemp("", "template-*.db")
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create template"})
-		return
-	}
-	tmpPath := tmpFile.Name()
-	tmpFile.Close()
-	defer os.Remove(tmpPath)
+	c.Header("Content-Disposition", `attachment; filename="students_template.csv"`)
+	c.Data(http.StatusOK, "text/csv; charset=utf-8", []byte(directoryTemplateCSV))
+}
 
-	db, err := sql.Open("sqlite3", tmpPath)
+// parseDirectoryCSV reads id and name columns (located by header); other columns are ignored
+func parseDirectoryCSV(r io.Reader) ([]model.StudentDirectoryEntry, error) {
+	reader := csv.NewReader(r)
+	reader.FieldsPerRecord = -1
+	reader.TrimLeadingSpace = true
+
+	header, err := reader.Read()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create template"})
-		return
+		return nil, fmt.Errorf("invalid CSV: missing header")
 	}
-	_, err = db.Exec(`CREATE TABLE students (
-		id TEXT PRIMARY KEY,
-		english_name TEXT,
-		chinese_name TEXT,
-		system_name TEXT NOT NULL
-	)`)
-	db.Close()
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create template"})
-		return
+	idCol, nameCol := -1, -1
+	for i, h := range header {
+		switch strings.ToLower(strings.TrimSpace(strings.TrimPrefix(h, "\uFEFF"))) {
+		case "id":
+			idCol = i
+		case "name":
+			nameCol = i
+		}
+	}
+	if idCol < 0 || nameCol < 0 {
+		return nil, fmt.Errorf("CSV header must include 'id' and 'name' columns")
 	}
 
-	c.FileAttachment(tmpPath, "template.db")
+	entries := make([]model.StudentDirectoryEntry, 0)
+	seen := map[string]int{}
+	for row := 2; ; row++ {
+		record, err := reader.Read()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, fmt.Errorf("row %d: invalid CSV", row)
+		}
+		if len(record) == 1 && strings.TrimSpace(record[0]) == "" {
+			continue
+		}
+		if len(record) <= idCol || len(record) <= nameCol {
+			return nil, fmt.Errorf("row %d: missing columns", row)
+		}
+		id, name := strings.TrimSpace(record[idCol]), strings.TrimSpace(record[nameCol])
+		if id == "" {
+			return nil, fmt.Errorf("row %d: empty id", row)
+		}
+		if name == "" {
+			return nil, fmt.Errorf("row %d: empty name", row)
+		}
+		if first, ok := seen[id]; ok {
+			return nil, fmt.Errorf("row %d: duplicate id %q (first on row %d)", row, id, first)
+		}
+		seen[id] = row
+		entries = append(entries, model.StudentDirectoryEntry{ID: id, SystemName: name})
+	}
+	if len(entries) == 0 {
+		return nil, fmt.Errorf("CSV has no student rows")
+	}
+	return entries, nil
 }
 
 func UploadStudentDirectory(c *gin.Context) {
@@ -120,48 +160,66 @@ func UploadStudentDirectory(c *gin.Context) {
 	}
 	defer src.Close()
 
-	if err := os.MkdirAll("data", 0755); err != nil {
+	entries, err := parseDirectoryCSV(src)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := os.MkdirAll(filepath.Dir(studentDirectoryPath), 0755); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create data directory"})
 		return
 	}
 
+	// Build into a temp file and rename so searches never see a half-written directory
 	tmpPath := studentDirectoryPath + ".tmp"
-	dst, err := os.Create(tmpPath)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save file"})
-		return
-	}
-	if _, err := io.Copy(dst, src); err != nil {
-		dst.Close()
+	os.Remove(tmpPath)
+	if err := writeDirectoryDB(tmpPath, entries); err != nil {
 		os.Remove(tmpPath)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save file"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save directory"})
 		return
 	}
-	dst.Close()
-
-	// Validate it's a valid SQLite DB with the expected schema
-	testDB, err := sql.Open("sqlite3", tmpPath)
-	if err != nil {
-		os.Remove(tmpPath)
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid database file"})
-		return
-	}
-	var count int
-	err = testDB.QueryRow("SELECT COUNT(*) FROM students").Scan(&count)
-	testDB.Close()
-	if err != nil {
-		os.Remove(tmpPath)
-		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("invalid database: missing 'students' table")})
-		return
-	}
-
 	if err := os.Rename(tmpPath, studentDirectoryPath); err != nil {
 		os.Remove(tmpPath)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save file"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to save directory"})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "uploaded", "count": count})
+	c.JSON(http.StatusOK, gin.H{"message": "uploaded", "count": len(entries)})
+}
+
+func writeDirectoryDB(path string, entries []model.StudentDirectoryEntry) error {
+	db, err := sql.Open("sqlite3", path)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	if _, err := tx.Exec(`CREATE TABLE students (
+		id TEXT PRIMARY KEY,
+		english_name TEXT,
+		chinese_name TEXT,
+		system_name TEXT NOT NULL
+	)`); err != nil {
+		return err
+	}
+	stmt, err := tx.Prepare("INSERT INTO students (id, system_name) VALUES (?, ?)")
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+	for _, e := range entries {
+		if _, err := stmt.Exec(e.ID, e.SystemName); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
 }
 
 func openDirectoryDB() (*sql.DB, error) {
