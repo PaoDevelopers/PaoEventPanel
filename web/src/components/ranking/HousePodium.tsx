@@ -1,4 +1,5 @@
 import type { HouseRanking } from "@/types";
+import { RelayButton } from "@/plugins/relay/RelayButton";
 
 interface HousePodiumProps {
   houses: HouseRanking[];
@@ -7,16 +8,14 @@ interface HousePodiumProps {
 export function HousePodium({ houses }: HousePodiumProps) {
   const sorted = [...houses].sort((a, b) => b.total_laps - a.total_laps);
 
-  if (sorted.length === 0) return null;
-
   const maxLaps = sorted[0]?.total_laps || 1;
 
   return (
-    <div className="rounded-xl border border-[var(--border-color)] glass-card p-3 lg:p-4 flex-1">
+    <div className="flex flex-col rounded-xl border border-[var(--border-color)] glass-card p-3 lg:p-4 flex-1">
       <h2 className="mb-2.5 lg:mb-3 text-sm lg:text-base font-bold text-[var(--text-primary)]">
         House Ranking
       </h2>
-      <div className="flex flex-col gap-2 lg:gap-2.5">
+      <div className="flex flex-1 flex-col gap-2 lg:gap-2.5">
         {sorted.map((house, idx) => {
           const barPercent = maxLaps > 0 ? (house.total_laps / maxLaps) * 100 : 0;
 
@@ -59,6 +58,7 @@ export function HousePodium({ houses }: HousePodiumProps) {
           );
         })}
       </div>
+      <RelayButton />
     </div>
   );
 }

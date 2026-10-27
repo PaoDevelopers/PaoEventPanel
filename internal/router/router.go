@@ -5,6 +5,7 @@ import (
 
 	"github.com/keren/pao-event-panel/internal/handler"
 	"github.com/keren/pao-event-panel/internal/middleware"
+	"github.com/keren/pao-event-panel/internal/plugin/relay"
 )
 
 func Setup(r *gin.Engine) {
@@ -53,6 +54,8 @@ func Setup(r *gin.Engine) {
 		superAdmin.GET("/autocomplete/template", handler.DownloadDirectoryTemplate)
 		superAdmin.POST("/autocomplete/upload", handler.UploadStudentDirectory)
 	}
+
+	relay.Register(api, admin, superAdmin)
 
 	// Static files for uploads
 	r.Static("/uploads", "./uploads")

@@ -10,6 +10,8 @@ import { RankingList } from "@/components/ranking/RankingList";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "sonner";
 import { Menu, X } from "lucide-react";
+import { RelayBoard } from "@/plugins/relay/RelayBoard";
+import { useIsRelayRoute } from "@/plugins/relay/route";
 
 function hexToRgb(hex: string): string {
   const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
@@ -25,6 +27,7 @@ function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   // Landscape phones: too short for the podium, so the list shows everyone instead
   const isShort = useMediaQuery("(height < 32rem)");
+  const isRelay = useIsRelayRoute();
 
   useEffect(() => {
     init();
@@ -91,6 +94,7 @@ function App() {
           <div className="absolute inset-0 backdrop-blur-xl bg-black/30 z-0" />
         )}
 
+        {isRelay ? <RelayBoard /> : (<>
         {/* Mobile menu button - only on small screens (below md) */}
         {!sidebarOpen && (
           <button
@@ -151,6 +155,7 @@ function App() {
             <RankingList students={students} onLapChange={refresh} includePodium={isShort} />
           </div>
         </div>
+        </>)}
       </div>
     </TooltipProvider>
   );
